@@ -1,0 +1,150 @@
+================================================================
+  ATM & DIGITAL WALLET SYSTEM — INTERVIEW PREP GUIDE
+  For Pine Labs Fintech Interview | Core Java Round
+================================================================
+
+HOW TO COMPILE & RUN (from the /src folder)
+--------------------------------------------
+  javac *.java
+  java Main
+
+
+PROJECT FILE STRUCTURE
+-----------------------
+  src/
+  ├── Main.java                  → Entry point only
+  ├── ATMApp.java                → Controller: Scanner + menu loop
+  ├── AuthService.java           → Simulated DB: HashMap-based auth
+  ├── Wallet.java                → Business logic: deposit/withdraw/history
+  ├── Transaction.java           → Model/POJO: one financial event
+  └── InsufficientFundsException.java → Custom checked exception
+
+
+================================================================
+  TOP 3 TECHNICAL INTERVIEW QUESTIONS & IDEAL ANSWERS
+================================================================
+
+──────────────────────────────────────────────────────────────
+Q1: "Why did you use HashMap instead of an ArrayList or a
+     database to store user credentials and wallets?"
+──────────────────────────────────────────────────────────────
+
+IDEAL ANSWER:
+
+  "HashMap gives us O(1) average-time complexity for both
+   put() and get() operations. In authentication, the most
+   frequent operation is lookup — 'does this userId exist,
+   and what is their PIN?' With a HashMap, this is a single
+   hash computation and memory access, regardless of how many
+   users are stored.
+
+   If I had used an ArrayList, I would need to iterate every
+   element to find a matching userId — that's O(n) time, which
+   degrades as the user base grows.
+
+   The two HashMaps (userCredentials and userWallets) mirror
+   a relational database design: 'userId' acts as the primary
+   key in both maps, linking credentials to wallets — exactly
+   like a foreign key relationship in SQL.
+
+   In a production Fintech system like Pine Labs, this would
+   be replaced by a database with indexed columns and a Spring
+   Data JPA repository, but the lookup-by-key pattern is the
+   same — an index in a database works similarly to a HashMap
+   under the hood."
+
+
+──────────────────────────────────────────────────────────────
+Q2: "What is the difference between a checked exception and
+     an unchecked exception? Why did you make
+     InsufficientFundsException a checked exception?"
+──────────────────────────────────────────────────────────────
+
+IDEAL ANSWER:
+
+  "In Java, exceptions fall into two categories:
+
+   CHECKED EXCEPTIONS (extend Exception):
+   - The compiler forces every caller to either handle them
+     with try-catch or declare them with 'throws'.
+   - They represent recoverable, EXPECTED conditions — things
+     that can reasonably happen in the normal flow of the app.
+
+   UNCHECKED EXCEPTIONS (extend RuntimeException):
+   - The compiler does NOT require you to handle them.
+   - They represent programming errors or truly unexpected
+     conditions — NullPointerException, ArrayIndexOutOfBounds.
+
+   I made InsufficientFundsException a CHECKED exception
+   because an insufficient balance is a KNOWN, EXPECTED
+   business scenario in any banking system — not a bug. A user
+   WILL try to withdraw more than they have at some point.
+   By making it checked, the compiler forces ATMApp.java to
+   explicitly handle it with a try-catch block. This makes
+   the code self-documenting: anyone reading the method
+   signature 'throws InsufficientFundsException' immediately
+   understands this is a valid business outcome that must
+   be handled gracefully.
+
+   In contrast, I used IllegalArgumentException (unchecked)
+   for zero/negative amounts because that's a programming
+   contract violation — invalid input that shouldn't happen
+   if the UI validates properly."
+
+
+──────────────────────────────────────────────────────────────
+Q3: "Why did you return Collections.unmodifiableList() from
+     getTransactionHistory() instead of returning the
+     ArrayList directly?"
+──────────────────────────────────────────────────────────────
+
+IDEAL ANSWER:
+
+  "This is a defensive programming and encapsulation technique.
+
+   The transactionHistory ArrayList is a private field inside
+   the Wallet class. If I returned the ArrayList directly, any
+   external code — like ATMApp — could call .add(), .remove(),
+   or .clear() on it, silently corrupting the transaction log.
+   For example:
+
+       wallet.getTransactionHistory().clear(); // DANGEROUS
+
+   By wrapping it in Collections.unmodifiableList(), I return
+   a VIEW of the list that throws an UnsupportedOperationException
+   if any mutating method is called on it. The caller can safely
+   iterate and read the history, but cannot modify it.
+
+   This enforces the 'Open/Closed Principle' — the list is open
+   for reading but closed for modification from outside the class.
+
+   In a real Spring Boot application, this same principle applies
+   when returning domain entity collections from a service layer
+   to the controller — you don't want the controller accidentally
+   mutating the data before it's saved to the database."
+
+
+================================================================
+  BONUS TOPICS TO BRUSH UP BEFORE YOUR INTERVIEW
+================================================================
+
+  1. Why use .equals() for String comparison, not ==?
+     → == compares object references (memory addresses)
+     → .equals() compares character content (the actual value)
+     → Two String literals can have the same content but be
+       different objects in the String pool — == fails there.
+
+  2. Why Double.parseDouble() instead of Scanner.nextDouble()?
+     → nextDouble() leaves a '\n' newline in the buffer, causing
+       the very next nextLine() call to return an empty string.
+     → Reading with nextLine() then parsing with parseDouble()
+       keeps the input buffer clean throughout the loop.
+
+  3. What would you change to make this production-ready?
+     → Replace HashMap with a real DB (MySQL + Spring Data JPA)
+     → Hash PINs with BCrypt before storage
+     → Use BigDecimal instead of double for currency precision
+     → Add JWT-based session tokens instead of plain variables
+     → Wrap services in @Transactional for atomic operations
+
+================================================================
